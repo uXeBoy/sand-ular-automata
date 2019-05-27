@@ -8,38 +8,27 @@
       git@github.com:szczys/esp8266-oled-ssd1306.git
  */
 
-
-
 //I2C version
 //https://github.com/ThingPulse/esp8266-oled-ssd1306
 #include <Wire.h>
-//#include "SSD1306.h"
-#include "SH1106Wire.h"
+#include <U8g2lib.h>
 #include "hourglass.h"
 
-const int MPU_addr=0x68;  // I2C address of the MPU-6050
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
-
 
 #define GRAINSWIDE  64 //GRAINSWIDE must be divisible by 8
 #define GRAINSDEEP  64
 #define BUFSIZE     (GRAINSWIDE/8)*GRAINSDEEP
 
-// ESP-WROOM-32 has LED on pin 2:
-int led = 2;
-
 uint8_t botbuff  [BUFSIZE];
 uint8_t topbuff [BUFSIZE];
 uint8_t toggle;
 
-// I2C version
-//SSD1306 display(0x3c, 18, 19);
-SH1106Wire display(0x3c, 21, 22);
+U8G2_SH1107_64X128_F_4W_HW_SPI display(U8G2_R0, 14, /* dc=*/ 27, /* reset=*/ 33);
 
 void clearBuff(void);
 void showBuf(void);
 uint8_t getSand(uint16_t x, uint16_t y, uint8_t framebuffer[BUFSIZE]);
-
 
 void clearBuff(void) {
   for (uint16_t i=0; i<(BUFSIZE); i++) {
@@ -49,25 +38,11 @@ void clearBuff(void) {
 }
 
 void showBuf(void) {
-  display.clear(); //drawFastImage doesn't draw black pixels so clear first
-
-  /*
-  //Keep track of grains of sand to make sure we're not losing or creating any by accident
-  //This count includes 1466 of the hourglass frame itself
-  uint16_t sandcount = 0;
-  for (uint8_t i=0; i<64; i++) {
-    for (uint8_t j=0; j<64; j++) {
-      if (getSand(j,i,botbuff  )) ++sandcount;
-      if (getSand(j,i,topbuff  )) ++sandcount;
-    }
-  }
-  char sbuf[20];
-  itoa(sandcount,sbuf,10);
-  display.drawString(50, 0, sbuf);
-  */
-  
-  display.drawFastImage(64, 0, GRAINSWIDE, GRAINSDEEP, botbuff);
-  display.drawFastImage(0, 0, GRAINSWIDE, GRAINSDEEP, topbuff);
+  display.clearBuffer();  
+  display.setDrawColor(1); // White
+  display.drawXBM(0, 0, GRAINSWIDE, GRAINSDEEP, topbuff);
+  display.drawXBM(0, 64, GRAINSWIDE, GRAINSDEEP, botbuff);
+  display.sendBuffer();
 }
 
 uint8_t getSand(uint16_t x, uint16_t y, uint8_t framebuffer[BUFSIZE]) {
@@ -305,17 +280,17 @@ void bathtubSand(uint16_t x, uint16_t y, int8_t dir, uint8_t framebuffer[BUFSIZE
 
 // the setup routine runs once when you press reset:
 void setup() {                
-  // initialize the digital pin as an output.
-  pinMode(led, OUTPUT);
   toggle = 0;
   clearBuff();
 
+  Serial.begin(115200);
+
   Wire.begin();
-  Wire.beginTransmission(MPU_addr);
+  Wire.beginTransmission(0x68);
   Wire.write(0x6B);  // PWR_MGMT_1 register
   Wire.write(0);     // set to zero (wakes up the MPU-6050)
   Wire.endTransmission(true);
-  
+
   //Fill with test sand
   uint16_t graincount = 0;
   for (uint8_t i=8; i<40; i++) {
@@ -326,9 +301,9 @@ void setup() {
     }
   }
   
-  display.init();
+  display.begin();  
   showBuf();
-  display.display();  
+//  display.display();  
 }
 
 // the loop routine runs over and over again forever:
@@ -340,6 +315,7 @@ void loop() {
   static int8_t weakengravity = 0;
   static int8_t tilt = 0;
   static int8_t weakentilt = 0;
+
   if (millis() > nexttime) {
     ++counter;
     /*
@@ -349,29 +325,28 @@ void loop() {
     */
     //setSand(32,6,1,topbuff);
 
-    Wire.beginTransmission(MPU_addr);
+    Wire.beginTransmission(0x68);
     Wire.write(0x3B);  // starting with register 0x3B (ACCEL_XOUT_H)
     Wire.endTransmission(false);
-    Wire.requestFrom(MPU_addr,4,true);  // request a total of 14 registers   
+    Wire.requestFrom(0x68,4,true);  // request a total of 14 registers   
+
     AcX=Wire.read()<<8|Wire.read();  // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
     AcY=Wire.read()<<8|Wire.read();  // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
 
-    if (AcX < -2000) {
-      //digitalWrite(led,1);
-      gravity = -1;
-    }
-    else if (AcX > 2000) {
-      //digitalWrite(led,0);
+    Serial.printf("X = %d, Y = %d\r\n",AcX, AcY);
+
+    if (AcY < -2000) {
       gravity = 1;
+    }
+    else if (AcY > 2000) {
+      gravity = -1;
     }
     else gravity = 0;
 
-    if (AcY < -2000) {
-      digitalWrite(led,1);
+    if (AcX < -2000) {
       tilt = -1;
     }
-    else if (AcY > 2000) {
-      digitalWrite(led,0);
+    else if (AcX > 2000) {
       tilt = 1;
     }
     else tilt = 0;
@@ -393,11 +368,8 @@ void loop() {
     }
 
     showBuf();
-
-    display.display();
+//    display.display();
     nexttime = millis()+300;
-    //if (digitalRead(led)) digitalWrite(led,LOW);
-    //else digitalWrite(led,HIGH);
   }
 
   if (millis() > nextframe) {
@@ -453,7 +425,6 @@ void loop() {
     }
     
     showBuf();
-    display.display();
     nextframe = millis()+10;
   }
 }
