@@ -1,20 +1,20 @@
 /*
   Hourglass OLED project
 
-  Dependencies:
-    ESP32 Arduino support https://randomnerdtutorials.com/installing-the-esp32-board-in-arduino-ide-mac-and-linux-instructions/
+  Fork this project https://github.com/szczys/sand-ular-automata and port to M5Stick
 
-    Clone this forked repo into ~/Arduino/libraries/
-      git@github.com:szczys/esp8266-oled-ssd1306.git
+  Changes for M5Stick
+  - Change MPU6050 to MPU9250
+  - Change LED inteface from I2C to SPI
+  - Use u8g2 graphic library
+
  */
 
-//I2C version
-//https://github.com/ThingPulse/esp8266-oled-ssd1306
 #include <Wire.h>
 #include <U8g2lib.h>
 #include "hourglass.h"
 
-int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
+int16_t AcX,AcY;
 
 #define GRAINSWIDE  64 //GRAINSWIDE must be divisible by 8
 #define GRAINSDEEP  64
@@ -283,7 +283,8 @@ void setup() {
   toggle = 0;
   clearBuff();
 
-  Serial.begin(115200);
+  // For debugging
+  // Serial.begin(115200);
 
   Wire.begin();
   Wire.beginTransmission(0x68);
@@ -303,7 +304,6 @@ void setup() {
   
   display.begin();  
   showBuf();
-//  display.display();  
 }
 
 // the loop routine runs over and over again forever:
@@ -333,7 +333,7 @@ void loop() {
     AcX=Wire.read()<<8|Wire.read();  // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
     AcY=Wire.read()<<8|Wire.read();  // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
 
-    Serial.printf("X = %d, Y = %d\r\n",AcX, AcY);
+    // Serial.printf("X = %d, Y = %d\r\n",AcX, AcY);
 
     if (AcY < -2000) {
       gravity = 1;
@@ -368,7 +368,6 @@ void loop() {
     }
 
     showBuf();
-//    display.display();
     nexttime = millis()+300;
   }
 
