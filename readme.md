@@ -15,3 +15,9 @@ Images for this OLED library map to the actual memory of the display. This makes
 ## Project Details:
 
 https://hackaday.io/project/165620-digital-hourglass
+
+## Portig to M5Stick
+* Change MPU6050 to MPU9250
+* Change LED inteface from I2C to SPI
+* Use u8g2 graphic library
+
