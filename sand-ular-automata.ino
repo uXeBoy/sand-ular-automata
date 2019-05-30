@@ -18,7 +18,6 @@ int16_t AcX,AcY;
 
 uint8_t botbuff [BUFSIZE];
 uint8_t topbuff [BUFSIZE];
-uint8_t tmpbuff [BUFSIZE];
 uint8_t toggle;
 
 U8X8_SSD1306_128X64_NONAME_4W_HW_SPI display(/* cs=*/ A5, /* dc=*/ A3, /* reset=*/ A4);
@@ -392,16 +391,14 @@ void loop() {
     if (gravity==1) {
       if (getSand(32,63,topbuff) && (getSand(32,0,botbuff) == 0)) {
         setSand(32,63,0,topbuff); //Erase grain
-        memcpy_P(tmpbuff, hourglasstop, BUFSIZE);
-        bathtubSand(32,63,-1,topbuff,tmpbuff); //Drop all grains above this to simulate bathtub effect
+        bathtubSand(32,63,-1,topbuff,hourglasstop); //Drop all grains above this to simulate bathtub effect
         setSand(32,0,1,botbuff); //Spawn grain in otherside of bottleneck
       }
     }
     if (gravity==-1) {
       if (getSand(32,0,botbuff) && (getSand(32,63,topbuff) == 0)) {
         setSand(32,0,0,botbuff);
-        memcpy_P(tmpbuff, hourglassbot, BUFSIZE);
-        bathtubSand(32,0,1,botbuff,tmpbuff);
+        bathtubSand(32,0,1,botbuff,hourglassbot);
         setSand(32,63,1,topbuff);
       }
     }
@@ -433,17 +430,13 @@ void loop() {
       else weakentilt = 0;
 
       if (tilt==1) {
-        memcpy_P(tmpbuff, hourglasstop, BUFSIZE);
-        driftEast(topbuff,tmpbuff);
-        memcpy_P(tmpbuff, hourglassbot, BUFSIZE);
-        driftEast(botbuff,tmpbuff);
+        driftEast(topbuff,hourglasstop);
+        driftEast(botbuff,hourglassbot);
       }
 
       if (tilt==-1) {
-        memcpy_P(tmpbuff, hourglassbot, BUFSIZE);
-        driftWest(botbuff,tmpbuff);
-        memcpy_P(tmpbuff, hourglasstop, BUFSIZE);
-        driftWest(topbuff,tmpbuff);
+        driftWest(botbuff,hourglassbot);
+        driftWest(topbuff,hourglasstop);
       }
     }
 
@@ -456,16 +449,12 @@ void loop() {
       else weakengravity = 0;
 
       if (gravity==1) {
-        memcpy_P(tmpbuff, hourglasstop, BUFSIZE);
-        driftSouth(topbuff,tmpbuff);
-        memcpy_P(tmpbuff, hourglassbot, BUFSIZE);
-        driftSouth(botbuff,tmpbuff);
+        driftSouth(topbuff,hourglasstop);
+        driftSouth(botbuff,hourglassbot);
       }
       if (gravity==-1) {
-        memcpy_P(tmpbuff, hourglassbot, BUFSIZE);
-        driftNorth(botbuff,tmpbuff);
-        memcpy_P(tmpbuff, hourglasstop, BUFSIZE);
-        driftNorth(topbuff,tmpbuff);
+        driftNorth(botbuff,hourglassbot);
+        driftNorth(topbuff,hourglasstop);
       }
     }
 
