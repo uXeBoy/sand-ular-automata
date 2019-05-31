@@ -18,7 +18,6 @@ int16_t AcX,AcY;
 
 uint8_t botbuff [BUFSIZE];
 uint8_t topbuff [BUFSIZE];
-uint8_t tmpbuff [BUFSIZE];
 uint8_t toggle;
 
 U8X8_SSD1306_128X64_NONAME_4W_HW_SPI display(/* cs=*/ A5, /* dc=*/ A3, /* reset=*/ A4);
@@ -79,6 +78,15 @@ void showBuf(void) {
   }
 }
 
+uint8_t getSand_P(uint16_t x, uint16_t y, uint8_t framebuffer[BUFSIZE]) {
+  uint16_t byteIdx = y*(GRAINSDEEP/8);
+  uint16_t byteOffset = x/8;
+  uint16_t byteLoc = x%8;
+
+  if (pgm_read_byte(&framebuffer[byteIdx+byteOffset]) & (1<<byteLoc)) return 1;
+  else return 0;
+}
+
 uint8_t getSand(uint16_t x, uint16_t y, uint8_t framebuffer[BUFSIZE]) {
   uint16_t byteIdx = y*(GRAINSDEEP/8);
   uint16_t byteOffset = x/8;
@@ -100,17 +108,17 @@ void setSand(uint16_t x, uint16_t y, uint8_t onoff, uint8_t framebuffer[BUFSIZE]
 uint8_t notTouchingGlass(uint16_t x, uint16_t y, uint8_t glassbuffer[BUFSIZE]) {
   //Sand *should* always be in the hour glass so we don't check for y-axis buffer overflows
   if (y>0) {
-    if (getSand(x,y-1,glassbuffer)) return 0;
-    if (getSand(x+1,y-1,glassbuffer)) return 0;
-    if (getSand(x-1,y-1,glassbuffer)) return 0;
+    if (getSand_P(x,y-1,glassbuffer)) return 0;
+    if (getSand_P(x+1,y-1,glassbuffer)) return 0;
+    if (getSand_P(x-1,y-1,glassbuffer)) return 0;
   }
-  if (getSand(x+1,y,glassbuffer)) return 0;
-  if (getSand(x-1,y,glassbuffer)) return 0;
+  if (getSand_P(x+1,y,glassbuffer)) return 0;
+  if (getSand_P(x-1,y,glassbuffer)) return 0;
 
   if (y<(GRAINSDEEP-1)) {
-    if (getSand(x,y+1,glassbuffer)) return 0;
-    if (getSand(x+1,y+1,glassbuffer)) return 0;
-    if (getSand(x-1,y+1,glassbuffer)) return 0;
+    if (getSand_P(x,y+1,glassbuffer)) return 0;
+    if (getSand_P(x+1,y+1,glassbuffer)) return 0;
+    if (getSand_P(x-1,y+1,glassbuffer)) return 0;
   }
   return 1;
 }
@@ -160,7 +168,7 @@ void driftSouth(uint8_t framebuffer[BUFSIZE], uint8_t glassbuffer[BUFSIZE]) {
   for (int16_t row=GRAINSDEEP-2; row>=0; row--) {
     for (uint16_t col=0; col<GRAINSWIDE; col++) {
       //Check if we should be dropping this grain
-      if (getSand(col,row, glassbuffer)) continue;  //Don't move cells that make up the hourglass itself
+      if (getSand_P(col,row, glassbuffer)) continue;  //Don't move cells that make up the hourglass itself
       if (getSand(col,row, framebuffer )) {
         if ((getSand(col,row+1, framebuffer ) == 0) && (notTouchingGlass(col,row+1,glassbuffer))) {
           moveS(col,row,framebuffer); continue;
@@ -195,7 +203,7 @@ void driftNorth(uint8_t framebuffer[BUFSIZE], uint8_t glassbuffer[BUFSIZE]) {
   for (int16_t row=1; row<GRAINSDEEP; row++) {
     for (int16_t col=GRAINSWIDE-1; col>=0; col--) {
       //Check if we should be dropping this grain
-      if (getSand(col,row, glassbuffer)) continue;  //Don't move cells that make up the hourglass itself
+      if (getSand_P(col,row, glassbuffer)) continue;  //Don't move cells that make up the hourglass itself
       if (getSand(col,row, framebuffer)) {
         if ((getSand(col,row-1, framebuffer) == 0) && (notTouchingGlass(col,row-1,glassbuffer))) {
           moveN(col,row,framebuffer); continue;
@@ -229,7 +237,7 @@ void driftWest(uint8_t framebuffer[BUFSIZE], uint8_t glassbuffer[BUFSIZE]) {
   for (int16_t col=1; col<GRAINSWIDE; col++) {
     for (int16_t row=GRAINSDEEP-1; row>=0; row--) {
       //Check if we should be dropping this grain
-      if (getSand(col,row, glassbuffer)) continue;  //Don't move cells that make up the hourglass itself
+      if (getSand_P(col,row, glassbuffer)) continue;  //Don't move cells that make up the hourglass itself
       if (getSand(col,row, framebuffer)) {
         if ((getSand(col-1,row, framebuffer) == 0) && (notTouchingGlass(col-1,row,glassbuffer))) {
           moveW(col,row,framebuffer); continue;
@@ -263,7 +271,7 @@ void driftEast(uint8_t framebuffer[BUFSIZE], uint8_t glassbuffer[BUFSIZE]) {
   for (int16_t col=GRAINSWIDE-2; col>=0; col--) {
     for (uint16_t row=0; row<GRAINSDEEP; row++) {
       //Check if we should be dropping this grain
-      if (getSand(col,row, glassbuffer)) continue;  //Don't move cells that make up the hourglass itself
+      if (getSand_P(col,row, glassbuffer)) continue;  //Don't move cells that make up the hourglass itself
       if (getSand(col,row, framebuffer )) {
         if ((getSand(col+1,row, framebuffer ) == 0) && (notTouchingGlass(col+1,row,glassbuffer))) {
           moveE(col,row,framebuffer); continue;
@@ -296,7 +304,7 @@ void driftEast(uint8_t framebuffer[BUFSIZE], uint8_t glassbuffer[BUFSIZE]) {
 void bathtubSand(uint16_t x, uint16_t y, int8_t dir, uint8_t framebuffer[BUFSIZE], uint8_t glassbuffer[BUFSIZE]) {
   if (dir < 0) {
     while (y>0) {
-      if (getSand(x,y-1,glassbuffer)) return; //We've hit glass
+      if (getSand_P(x,y-1,glassbuffer)) return; //We've hit glass
       if (getSand(x,y-1,framebuffer) == 0) return; //Air above us, let normal rules sort this out
       moveS(x,y-1,framebuffer);
       --y;
@@ -304,7 +312,7 @@ void bathtubSand(uint16_t x, uint16_t y, int8_t dir, uint8_t framebuffer[BUFSIZE
   }
   else {
     while (y<(GRAINSDEEP-1)) {
-      if (getSand(x,y+1,glassbuffer)) return; //We've hit glass
+      if (getSand_P(x,y+1,glassbuffer)) return; //We've hit glass
       if (getSand(x,y+1,framebuffer) == 0) return; //Air above us, let normal rules sort this out
       moveN(x,y+1,framebuffer);
       ++y;
@@ -392,16 +400,14 @@ void loop() {
     if (gravity==1) {
       if (getSand(32,63,topbuff) && (getSand(32,0,botbuff) == 0)) {
         setSand(32,63,0,topbuff); //Erase grain
-        memcpy_P(tmpbuff, hourglasstop, BUFSIZE);
-        bathtubSand(32,63,-1,topbuff,tmpbuff); //Drop all grains above this to simulate bathtub effect
+        bathtubSand(32,63,-1,topbuff,hourglasstop); //Drop all grains above this to simulate bathtub effect
         setSand(32,0,1,botbuff); //Spawn grain in otherside of bottleneck
       }
     }
     if (gravity==-1) {
       if (getSand(32,0,botbuff) && (getSand(32,63,topbuff) == 0)) {
         setSand(32,0,0,botbuff);
-        memcpy_P(tmpbuff, hourglassbot, BUFSIZE);
-        bathtubSand(32,0,1,botbuff,tmpbuff);
+        bathtubSand(32,0,1,botbuff,hourglassbot);
         setSand(32,63,1,topbuff);
       }
     }
@@ -433,17 +439,13 @@ void loop() {
       else weakentilt = 0;
 
       if (tilt==1) {
-        memcpy_P(tmpbuff, hourglasstop, BUFSIZE);
-        driftEast(topbuff,tmpbuff);
-        memcpy_P(tmpbuff, hourglassbot, BUFSIZE);
-        driftEast(botbuff,tmpbuff);
+        driftEast(topbuff,hourglasstop);
+        driftEast(botbuff,hourglassbot);
       }
 
       if (tilt==-1) {
-        memcpy_P(tmpbuff, hourglassbot, BUFSIZE);
-        driftWest(botbuff,tmpbuff);
-        memcpy_P(tmpbuff, hourglasstop, BUFSIZE);
-        driftWest(topbuff,tmpbuff);
+        driftWest(botbuff,hourglassbot);
+        driftWest(topbuff,hourglasstop);
       }
     }
 
@@ -456,16 +458,12 @@ void loop() {
       else weakengravity = 0;
 
       if (gravity==1) {
-        memcpy_P(tmpbuff, hourglasstop, BUFSIZE);
-        driftSouth(topbuff,tmpbuff);
-        memcpy_P(tmpbuff, hourglassbot, BUFSIZE);
-        driftSouth(botbuff,tmpbuff);
+        driftSouth(topbuff,hourglasstop);
+        driftSouth(botbuff,hourglassbot);
       }
       if (gravity==-1) {
-        memcpy_P(tmpbuff, hourglassbot, BUFSIZE);
-        driftNorth(botbuff,tmpbuff);
-        memcpy_P(tmpbuff, hourglasstop, BUFSIZE);
-        driftNorth(topbuff,tmpbuff);
+        driftNorth(botbuff,hourglassbot);
+        driftNorth(topbuff,hourglasstop);
       }
     }
 
